@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="dataSourceStorageLocal">
+    <data-source name="MySQL - zhibo_com@10.206.79.43" uuid="90b4fff3-7c77-40e2-96d8-2096f6b5c11f">
+      <secret-storage>master_key</secret-storage>
+      <user-name>root</user-name>
+      <schema-pattern>zhibo_com.*</schema-pattern>
+      <default-schemas>zhibo_com.*</default-schemas>
+    </data-source>
+  </component>
+</project>

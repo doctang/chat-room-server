@@ -1,0 +1,78 @@
+# https://docs.travis-ci.com/user/languages/python/
+
+language: python
+sudo: false
+
+install:
+  - pip install tox codecov
+
+script:
+  - tox -c tox.ini -e $TOX_ENV
+
+after_script:
+  - codecov
+
+matrix:
+  fast_finish: true
+
+  include:
+    - env: TOX_ENV=flake8
+
+    - python: 2.7
+      env:
+      - TOX_ENV=py27-tw121
+
+    - python: 2.7
+      env:
+      - TOX_ENV=py27-twtrunk
+
+    - python: 2.7
+      env:
+      - TOX_ENV=py27-asyncio
+
+    - python: 3.3
+      env:
+      - TOX_ENV=py33-tw154
+
+    - python: 3.3
+      env:
+      - TOX_ENV=py33-twtrunk
+
+    - python: 3.3
+      env:
+      - TOX_ENV=py33-asyncio
+
+    - python: 3.6
+      env:
+      - TOX_ENV=py36-tw154
+
+    - python: 3.6
+      env:
+      - TOX_ENV=py36-twtrunk
+
+    - python: 3.6
+      env:
+      - TOX_ENV=py36-asyncio
+
+    - python: pypy
+      env:
+      - TOX_ENV=pypy-twtrunk
+
+    - python: pypy
+      env:
+      - TOX_ENV=pypy-asyncio
+
+    - python: pypy3
+      env:
+      - TOX_ENV=pypy3-twtrunk
+
+    - python: pypy3
+      env:
+      - TOX_ENV=pypy3-asyncio
+
+notifications:
+   irc:
+      channels:
+         - "irc.freenode.org#autobahn"
+      use_notice: true
+      skip_join: true
