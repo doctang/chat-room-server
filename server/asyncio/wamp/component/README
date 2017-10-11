@@ -1,3 +1,0 @@
-This demonstrates the WAMP "Component" API which is intended to be a
-more functional-style API (that is, instead of the subclassing-based
-API of ApplicationSession)
