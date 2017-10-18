@@ -42,8 +42,12 @@ class LiveServerProtocol(WebSocketServerProtocol):
                                 'Ulogin': payload, 'client_name': payload['client_name'],
                                 'time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
                                 'client_list': [i[1] for i in client_user[room_id].values()]}
-                    for i in client_user[room_id].values():
-                        i[0].sendMessage(json.dumps(send_msg), is_binary)
+
+                    for key, value in client_user[room_id].items():
+                        if value[0].state == 3:
+                            value[0].sendMessage(json.dumps(send_msg), is_binary)
+                        else:
+                            client_user[room_id].pop(key)
             elif t == 'Msgsay':
                 flag = False
                 for key, value in client_user.items():
@@ -57,7 +61,10 @@ class LiveServerProtocol(WebSocketServerProtocol):
                                         'from_client_name': i[1]['nick'],
                                         'time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}
                             for j in value.values():
-                                j[0].sendMessage(json.dumps(send_msg), is_binary)
+                                if j[0].state == 3:
+                                    j[0].sendMessage(json.dumps(send_msg), is_binary)
+                                else:
+                                    client_user[key].pop(h)
                             break
                     if flag:
                         break
@@ -71,10 +78,12 @@ class LiveServerProtocol(WebSocketServerProtocol):
                     send_msg = {'from_client_name': {'chatid': i[1]['chatid'],
                                                      'nick': i[1]['client_name']},
                                 'type': 'logout', 'stat': 'OK'}
-                    client_user.pop(key)
                     user_online.remove(i[1]['client_name'])
                     for j in value.values():
-                        j[0].sendMessage(json.dumps(send_msg), False)
+                        if j[0].state == 3:
+                            j[0].sendMessage(json.dumps(send_msg), False)
+                        else:
+                            client_user[key].pop(h)
                     break
             if flag:
                 break
@@ -87,6 +96,8 @@ if __name__ == '__main__':
     log.startLogging(logfile)
     user_online = []
     client_user = {}
+    # import sys
+    # log.startLogging(sys.stdout)
     factory = WebSocketServerFactory('ws://127.0.0.1:%s' % port)
     factory.protocol = LiveServerProtocol
     factory.setProtocolOptions(maxConnections=5000)
