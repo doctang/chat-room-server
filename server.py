@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
+import argparse
 import json
 import os
+import sys
 import threading
 import time
 
@@ -10,6 +12,7 @@ from twisted.internet import reactor
 from twisted.python import log
 
 mutex = threading.Lock()
+online_user = dict()
 
 
 class LiveServerProtocol(WebSocketServerProtocol):
@@ -31,87 +34,63 @@ class LiveServerProtocol(WebSocketServerProtocol):
             else:
                 t = payload.get('type')
                 if t == 'login':
-                    self.client_name = payload['client_name']
-                    if len(user_online) == 5000:
+                    if len(online_user) == 5000:
                         self.sendMessage(json.dumps({'stat': 'MaxOnline'}), False)
-                    elif self.client_name in user_online:
+                    elif payload['client_name'] in online_user and online_user[payload['client_name']][1].state == self.STATE_OPEN:
                         self.sendMessage(json.dumps({'stat': 'OtherLogin'}), False)
                     else:
+                        self.client_name = payload['client_name']
                         payload['nick'] = self.client_name
                         room_id = payload['room_id']
-                        if room_id in client_user:
-                            client_user[room_id][self.client_name] = [self, payload]
-                        else:
-                            client_user[room_id] = {self.client_name: [self, payload]}
-                        user_online.append(self.client_name)
-                        log.msg('User login: %s' % len(user_online))
-                        payload['roomid'] = payload['room_id']
-                        send_msg = {'stat': 'OK', 'type': 'login',
-                                    'Ulogin': payload, 'client_name': self.client_name,
+                        payload['roomid'] = room_id
+                        online_user[self.client_name] = [room_id, self, payload]
+                        send_msg = {'stat': 'OK', 'type': 'login', 'Ulogin': payload, 'client_name': self.client_name,
                                     'time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
-                                    'client_list': [i[1] for i in client_user[room_id].values()]}
+                                    'client_list': [i[2] for i in online_user.values() if i[0] == room_id]}
 
-                        for key, value in client_user[room_id].items():
-                            if value[0].state == 3:
-                                value[0].sendMessage(json.dumps(send_msg), is_binary)
+                        for k, v in [i for i in online_user.items() if i[1][0] == room_id]:
+                            if v[1].state == self.STATE_OPEN:
+                                v[1].sendMessage(json.dumps(send_msg), is_binary)
                             else:
-                                client_user[room_id].pop(key)
-                elif t == 'Msgsay':
-                    flag = False
-                    for key, value in client_user.items():
-                        for h, i in value.items():
-                            if h == self.client_name:
-                                flag = True
-                                send_msg = {'stat': 'OK', 'type': payload['type'],
-                                            'UMsg': {'ChatId': i[1]['chatid'], 'ToChatId': payload['ToUser'],
-                                                     'IsPersonal': payload['Personal'],
-                                                     'Style': payload['Style'], 'Txt': payload['Msg']},
-                                            'from_client_name': i[1]['nick'],
-                                            'time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}
-                                for j in value.values():
-                                    if j[0].state == 3:
-                                        j[0].sendMessage(json.dumps(send_msg), is_binary)
-                                    else:
-                                        client_user[key].pop(h)
-                                break
-                        if flag:
-                            break
+                                online_user.pop(k)
+                elif t == 'Msgsay' and self.client_name in online_user:
+                    value = online_user[self.client_name]
+                    send_msg = {'stat': 'OK', 'type': payload['type'],
+                                'UMsg': {'ChatId': value[2]['chatid'], 'ToChatId': payload['ToUser'],
+                                         'IsPersonal': payload['Personal'], 'Style': payload['Style'],
+                                         'Txt': payload['Msg']},
+                                'from_client_name': value[2]['nick'],
+                                'time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}
+                    for k, v in [i for i in online_user.items() if i[1][0] == value[0]]:
+                        if v[1].state == self.STATE_OPEN:
+                            v[1].sendMessage(json.dumps(send_msg), is_binary)
+                        else:
+                            online_user.pop(k)
 
     def onClose(self, was_clean, code, reason):
         log.msg('Websocket connection closed: {0}'.format(reason))
         with mutex:
-            flag = False
-            for key, value in client_user.items():
-                for h, i in value.items():
-                    if h == self.client_name:
-                        flag = True
-                        send_msg = {'from_client_name': {'chatid': i[1]['chatid'],
-                                                         'nick': self.client_name},
-                                    'type': 'logout', 'stat': 'OK'}
-                        if self.client_name in user_online:
-                            user_online.remove(self.client_name)
-                        log.msg('User logout: %s' % len(user_online))
-                        for j in value.values():
-                            if j[0].state == 3:
-                                j[0].sendMessage(json.dumps(send_msg), False)
-                            elif self.client_name in client_user[key]:
-                                client_user[key].pop(self.client_name)
-                        break
-                if flag:
-                    break
+            if self.client_name in online_user:
+                value = online_user[self.client_name]
+                send_msg = {'from_client_name': {'chatid': value[2]['chatid'], 'nick': value[2]['nick']},
+                            'type': 'logout', 'stat': 'OK'}
+                online_user.pop(self.client_name)
+                for k, v in [i for i in online_user.items() if i[1][0] == value[0]]:
+                    if v[1].state == self.STATE_OPEN:
+                        v[1].sendMessage(json.dumps(send_msg), False)
+                    else:
+                        online_user.pop(k)
 
 
 if __name__ == '__main__':
-    port = 9089
-    logfile = open(os.path.join(os.path.expanduser('~'), 'live.log'), 'a')
-    log.startLogging(logfile)
-    user_online = []
-    client_user = {}
-    # import sys
-    # log.startLogging(sys.stdout)
+    p = argparse.ArgumentParser()
+    p.add_argument('-p', dest='port', type=int)
+    port = p.parse_args(sys.argv[1:]).port or 9089
+    f = open(os.path.join(os.path.expanduser('~'), 'live-%d.log' % port), 'a')
+    log.startLogging(f)
     factory = WebSocketServerFactory('ws://127.0.0.1:%s' % port)
     factory.protocol = LiveServerProtocol
     factory.setProtocolOptions(maxConnections=5000)
     reactor.listenTCP(port, factory)
     reactor.run()
-    logfile.close()
+    f.close()
