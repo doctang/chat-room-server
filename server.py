@@ -34,7 +34,7 @@ class LiveServerProtocol(WebSocketServerProtocol):
             else:
                 t = payload.get('type')
                 if t == 'login':
-                    if len(online_user) == 5000:
+                    if len(online_user) == 10000:
                         self.sendMessage(json.dumps({'stat': 'MaxOnline'}), False)
                     elif payload['client_name'] in online_user and online_user[payload['client_name']][0] != payload['room_id']:
                         self.sendMessage(json.dumps({'stat': 'OtherLogin'}), False)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     log.startLogging(f)
     factory = WebSocketServerFactory('ws://127.0.0.1:%s' % port)
     factory.protocol = LiveServerProtocol
-    factory.setProtocolOptions(maxConnections=5000)
+    factory.setProtocolOptions(maxConnections=10000)
     reactor.listenTCP(port, factory)
     reactor.run()
     f.close()
