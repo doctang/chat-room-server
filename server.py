@@ -36,7 +36,7 @@ class LiveServerProtocol(WebSocketServerProtocol):
                 if t == 'login':
                     if len(online_user) == 5000:
                         self.sendMessage(json.dumps({'stat': 'MaxOnline'}), False)
-                    elif payload['client_name'] in online_user and online_user[payload['client_name']][1].state == self.STATE_OPEN:
+                    elif payload['client_name'] in online_user and online_user[payload['client_name']][0] != payload['room_id']:
                         self.sendMessage(json.dumps({'stat': 'OtherLogin'}), False)
                     else:
                         self.client_name = payload['client_name']
