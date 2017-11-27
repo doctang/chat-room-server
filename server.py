@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import os
 import sys
 import threading
 import time
@@ -86,11 +85,9 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('-p', dest='port', type=int)
     port = p.parse_args(sys.argv[1:]).port or 9089
-    f = open(os.path.join(os.path.expanduser('~'), 'live-%d.log' % port), 'a')
-    log.startLogging(f)
+    log.startLogging(sys.stdout)
     factory = WebSocketServerFactory('ws://127.0.0.1:%s' % port)
     factory.protocol = LiveServerProtocol
     factory.setProtocolOptions(maxConnections=10000)
     reactor.listenTCP(port, factory)
     reactor.run()
-    f.close()
