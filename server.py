@@ -69,6 +69,7 @@ class LiveServerProtocol(WebSocketServerProtocol):
             for k, v in [i for i in online_user.items() if i[1][0] == value[0]]:
                 if v[1].state == self.STATE_OPEN:
                     v[1].sendMessage(json.dumps(send_msg), False)
+            online_user.pop(self.client_name)
 
 
 if __name__ == '__main__':
